@@ -44,11 +44,16 @@ cp "$APPDIR/SharpEmu.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
 cp "${REPO}/LICENSE.txt" "$APPDIR/usr/share/doc/SharpEmu/"
 
 TOOL="${OUT}/appimagetool"
-if [ ! -f "$TOOL" ]; then
+if [ ! -d "$TOOL" ]; then
     echo "Downloading appimagetool..."
-    curl -Lo "$TOOL" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
-    chmod +x "$TOOL"
+    curl -Lo "${TOOL}.AppImage" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+    chmod +x "${TOOL}.AppImage"
+    cd "$OUT"
+    "${TOOL}.AppImage" --appimage-extract >/dev/null 2>&1
+    mv squashfs-root "$TOOL"
+    rm -f "${TOOL}.AppImage"
+    cd "$REPO"
 fi
 
-"$TOOL" --no-appstream "$APPDIR" "${OUT}/SharpEmu-x86_64.AppImage"
+"${TOOL}/AppRun" --no-appstream "$APPDIR" "${OUT}/SharpEmu-x86_64.AppImage"
 echo "AppImage: ${OUT}/SharpEmu-x86_64.AppImage"
