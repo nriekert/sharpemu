@@ -39,6 +39,8 @@ jobs:
       release-name: ${{ steps.vars.outputs.release-name }}
       release-tag: ${{ steps.vars.outputs.release-tag }}
       short-sha: ${{ steps.vars.outputs.short-sha }}
+      appimage-name: ${{ steps.vars.outputs.appimage-name }}
+      appimage-artifact: ${{ steps.vars.outputs.appimage-artifact }}
     steps:
       - name: Compute workflow variables
         id: vars
@@ -50,6 +52,8 @@ jobs:
           artifact_name="sharpemu-win64-${short_sha}"
           release_tag="win64-${safe_ref}-${short_sha}"
           release_name="SharpEmu win64 ${short_sha}"
+          appimage_name="SharpEmu-${short_sha}-x86_64.AppImage"
+          appimage_artifact="sharpemu-linux64-${short_sha}"
 
           {
             echo "short-sha=${short_sha}"
@@ -57,6 +61,8 @@ jobs:
             echo "artifact-name=${artifact_name}"
             echo "release-tag=${release_tag}"
             echo "release-name=${release_name}"
+            echo "appimage-name=${appimage_name}"
+            echo "appimage-artifact=${appimage_artifact}"
           } >> "$GITHUB_OUTPUT"
 
   reuse:
@@ -121,39 +127,82 @@ jobs:
           path: ${{ env.RELEASE_DIR }}\${{ needs.init.outputs.archive-name }}
           if-no-files-found: error
 
+  appimage:
+    name: Build AppImage
+    needs:
+      - init
+      - reuse
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.103
+          cache: true
+          cache-dependency-path: |
+            Directory.Packages.props
+            src/**/packages.lock.json
+
+      - name: Build AppImage
+        run: ./scripts/package-appimage.sh
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ needs.init.outputs.appimage-artifact }}
+          path: artifacts/appimage/${{ needs.init.outputs.appimage-name }}
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
     needs:
       - init
       - build
+      - appimage
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download build artifact
+      - name: Download Windows artifact
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.init.outputs.artifact-name }}
+          path: release
+
+      - name: Download AppImage artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.init.outputs.appimage-artifact }}
           path: release
 
       - name: Create or update release
         shell: bash
         env:
           ARCHIVE_NAME: ${{ needs.init.outputs.archive-name }}
+          APPIMAGE_NAME: ${{ needs.init.outputs.appimage-name }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_NAME: ${{ needs.init.outputs.release-name }}
           RELEASE_TAG: ${{ needs.init.outputs.release-tag }}
         run: |
-          asset_path="release/${ARCHIVE_NAME}"
-          notes="Automated Windows build for commit ${GITHUB_SHA}."
+          win_asset="release/${ARCHIVE_NAME}"
+          linux_asset="release/${APPIMAGE_NAME}"
+          notes="Automated build for commit ${GITHUB_SHA}.
+
+          - Windows: ${ARCHIVE_NAME}
+          - Linux:   ${APPIMAGE_NAME}"
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            gh release upload "${RELEASE_TAG}" "${asset_path}" --clobber
+            gh release upload "${RELEASE_TAG}" "${win_asset}" "${linux_asset}" --clobber
             gh release edit "${RELEASE_TAG}" --title "${RELEASE_NAME}" --notes "${notes}"
           else
-            gh release create "${RELEASE_TAG}" "${asset_path}" \
+            gh release create "${RELEASE_TAG}" "${win_asset}" "${linux_asset}" \
               --title "${RELEASE_NAME}" \
               --notes "${notes}" \
               --target "${GITHUB_SHA}"

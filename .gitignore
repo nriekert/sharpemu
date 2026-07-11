@@ -39,3 +39,7 @@ Desktop.ini
 ehthumbs.db
 
 .vs/
+
+# AppImage packaging
+*.AppImage
+appimagetool
