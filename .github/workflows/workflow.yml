@@ -148,6 +148,9 @@ jobs:
             Directory.Packages.props
             src/**/packages.lock.json
 
+      - name: Install ImageMagick
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+
       - name: Build AppImage
         run: ./scripts/package-appimage.sh
 
