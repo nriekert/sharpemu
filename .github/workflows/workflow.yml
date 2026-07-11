@@ -148,6 +148,9 @@ jobs:
             Directory.Packages.props
             src/**/packages.lock.json
 
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick libfuse2
+
       - name: Build AppImage
         run: ./scripts/package-appimage.sh
 
