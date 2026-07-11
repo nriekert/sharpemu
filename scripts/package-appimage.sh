@@ -50,5 +50,17 @@ if [ ! -f "$TOOL" ]; then
     chmod +x "$TOOL"
 fi
 
-"$TOOL" --no-appstream "$APPDIR" "${OUT}/SharpEmu-x86_64.AppImage"
+# appimagetool is an AppImage itself; if FUSE isn't available,
+# extract and run the contained binary directly.
+if "$TOOL" --no-appstream "$APPDIR" "${OUT}/SharpEmu-x86_64.AppImage"; then
+    :
+else
+    echo "FUSE not available, extracting appimagetool..."
+    cd "$OUT"
+    "$TOOL" --appimage-extract >/dev/null 2>&1
+    ./squashfs-root/AppRun --no-appstream "$APPDIR" "${OUT}/SharpEmu-x86_64.AppImage"
+    rm -rf squashfs-root
+    cd "$REPO"
+fi
+
 echo "AppImage: ${OUT}/SharpEmu-x86_64.AppImage"
