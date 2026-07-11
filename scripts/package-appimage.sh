@@ -21,9 +21,7 @@ else
 fi
 
 dotnet publish "${REPO}/src/SharpEmu.CLI/SharpEmu.CLI.csproj" \
-    -c "$CONF" -r linux-x64 --self-contained true --no-restore \
-    || dotnet publish "${REPO}/src/SharpEmu.CLI/SharpEmu.CLI.csproj" \
-        -c "$CONF" -r linux-x64 --self-contained true
+    -c "$CONF" -r linux-x64 --self-contained true
 
 APPDIR="${OUT}/SharpEmu.AppDir"
 rm -rf "$APPDIR"
